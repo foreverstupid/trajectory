@@ -1,0 +1,13 @@
+*.o
+gpm
+*.txt
+*.csv
+*.raw
+*.gif
+*.png
+.vscode/*
+*.swp
+*.un~
+*.lib
+*.exe
+*.dll
