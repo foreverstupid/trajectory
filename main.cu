@@ -199,7 +199,7 @@ int main(int argc, char **argv)
         3 * dataSize * sizeof(float),
         cudaMemcpyHostToDevice) );
 
-    for (int k = 1; k < 6; k++)
+    for (int k = 1; k < 7; k++)
     {
         char name[120];
         sprintf(name, "plot_%d.ssv", k);
