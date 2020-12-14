@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <time.h>
 
 #define _(code) do{ gpuAssert(code, __FILE__, __LINE__); }while(0)
 
@@ -160,6 +161,8 @@ int getData(const char *inputFileName, int maxDataCount, float *data)
 
 int main(int argc, char **argv)
 {
+    clock_t start = clock();
+
     int N;
     float origin;
     float step;
@@ -237,6 +240,8 @@ int main(int argc, char **argv)
 
     cudaFree(deviceInput);
     cudaFree(deviceReductionOut);
+
+    printf("Running time: %f seconds", (float)(clock() - start) / CLOCKS_PER_SEC);
 
     return 0;
 }
