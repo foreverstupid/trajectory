@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <time.h>
 
+#ifdef CUDA
 #define _(code) do{ gpuAssert(code, __FILE__, __LINE__); }while(0)
 
 inline void gpuAssert(cudaError_t code, const char *file, int line)
@@ -143,12 +144,52 @@ void reduceCorrelationIntegral(
         output[blockIdx.x] = sdata[0];
     }
 }
-
+#else
 
 
 /*=================================================================*/
 /*---------------------------- HOST CODE --------------------------*/
 /*=================================================================*/
+inline float theta(float x)
+{
+    return x >= 0 ? 1.0 : 0.0;
+}
+
+
+
+inline float sqr(float x)
+{
+    return x * x;
+}
+
+
+
+float getCorrelationIntegral(const float *input, float l, int k, int N)
+{
+    float result = 0.0;
+    for (int i = 0; i < N; i++)
+    {
+        for (int j = i + 1; j < N; j++)
+        {
+            float rho = 0.0;
+            for (int p = 0; p < k; p++)
+            {
+                rho +=
+                    sqr(input[(i + p) * 3] - input[(j + p) * 3]) +
+                    sqr(input[(i + p) * 3 + 1] - input[(j + p) * 3 + 1]) +
+                    sqr(input[(i + p) * 3 + 2] - input[(j + p) * 3 + 2]);
+            }
+
+            result += sqrt(rho);
+        }
+    }
+
+    return result / (N  * N);
+}
+#endif
+
+
+
 int getData(const char *inputFileName, int maxDataCount, float *data)
 {
     FILE *file = fopen(inputFileName, "rb");
@@ -172,11 +213,13 @@ int main(int argc, char **argv)
     sscanf(argv[4], "%f", &step);
 
     int dataSize = N + 10;  // additional elements for k-shifting
+    float *input = new float[3 * dataSize];
+
+#ifdef CUDA
     int blockSize = 512;
     int blockCount = (N * N + blockSize - 1) / blockSize / 2;
-
-    float *input = new float[3 * dataSize];
     float *reductionOut = new float[blockCount];
+#endif
 
     int actualDataSize = getData(argv[1], dataSize, input);
     if (getData(argv[1], dataSize, input) != 3 * dataSize)
@@ -190,6 +233,7 @@ int main(int argc, char **argv)
         exit(1);
     }
 
+#ifdef CUDA
     float *deviceReductionOut;
     float *deviceInput;
 
@@ -201,6 +245,7 @@ int main(int argc, char **argv)
         input,
         3 * dataSize * sizeof(float),
         cudaMemcpyHostToDevice) );
+#endif
 
     for (int k = 1; k < 7; k++)
     {
@@ -211,6 +256,9 @@ int main(int argc, char **argv)
         float l = origin;
         for (int q = 0; q < 50; q++)
         {
+            float integral = 0.0;
+
+#ifdef CUDA
             reduceCorrelationIntegral
                 <<<blockCount, blockSize, blockSize * sizeof(float)>>>
                 (deviceInput, deviceReductionOut, N, k, l);
@@ -221,13 +269,15 @@ int main(int argc, char **argv)
                 blockCount * sizeof(float),
                 cudaMemcpyDeviceToHost) );
 
-            float integral = 0.0;
             for (int t = 0; t < blockCount; t++)
             {
                 integral += reductionOut[t];
             }
 
             integral /= N * N;
+#else
+            integral = getCorrelationIntegral(input, l, k, N);
+#endif
             fprintf(out, "%e %e\n", log(l), log(integral));
             l *= step;
         }
@@ -236,10 +286,12 @@ int main(int argc, char **argv)
     }
 
     delete[] input;
-    delete[] reductionOut;
 
+#ifdef CUDA
+    delete[] reductionOut;
     cudaFree(deviceInput);
     cudaFree(deviceReductionOut);
+#endif
 
     printf("Running time: %f seconds", (float)(clock() - start) / CLOCKS_PER_SEC);
 
