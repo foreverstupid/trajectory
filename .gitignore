@@ -11,3 +11,6 @@ gpm
 *.lib
 *.exe
 *.dll
+*.ssv
+trajectory
+*.exp

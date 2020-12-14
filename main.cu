@@ -9,7 +9,7 @@ inline void gpuAssert(cudaError_t code, const char *file, int line)
         fprintf(
             stderr, "![%s:%d] %s: %s\n",
             file, line, cudaGetErrorName(code), cudaGetErrorString(code));
-        
+
         exit(1);
     }
 }
@@ -19,7 +19,6 @@ inline void gpuAssert(cudaError_t code, const char *file, int line)
 /*===================================================================*/
 /*------------------------------ KERNELS ----------------------------*/
 /*===================================================================*/
-
 /*
  * Calculates values that are defined by the formula:
  *      \rho(i, j) = \sqrt(\sum_{s = 0}^{k - 1} (y_{j + s} - y_{i + s})^2).
@@ -37,8 +36,11 @@ inline void gpuAssert(cudaError_t code, const char *file, int line)
  *          The delay value.
  */
 __device__
-float getRho(float *data, int idx1, int idx2, int k)
+float getRho(float *data, int idx, int N, int k)
 {
+    int idx1 = idx / N;
+    int idx2 = idx % N;
+
     float result = 0.0f;
     for (int i = 0; i < k; i++)
     {
@@ -50,61 +52,6 @@ float getRho(float *data, int idx1, int idx2, int k)
     }
 
     return sqrt(result);
-}
-
-
-
-/*
- * Calculates the matrix [ \rho(i, j) ] for all i, j in 1..N.
- * Args:
- *      input:
- *          3D data series contains N 3-vectors as a plain array.
- *
- *      output:
- *          Placeholder for N^2 float values that will contain \rho(i, j)
- *          in a row major format.
- *
- *      N:
- *          Number of input data vectors.
- *
- *      k:
- *          The delay value.
- */
-__global__
-void calculateRhos(
-    float *input,
-    float *output,
-    int N,
-    int k)
-{
-    extern __shared__ float shared[];
-
-    int idx1 = threadIdx.x;
-    int idx2 = threadIdx.y;
-
-    int m = blockDim.x;
-    int n = blockDim.y;
-
-    int globalIdx1 = m * blockIdx.x + idx1;
-    int globalIdx2 = n * blockIdx.y + idx2;
-
-    if (idx2 == 0)
-    {
-        shared[idx1 * 3] = input[globalIdx1 * 3];
-        shared[idx1 * 3 + 1] = input[globalIdx1 * 3 + 1];
-        shared[idx1 * 3 + 2] = input[globalIdx1 * 3 + 2];
-    }
-    else if (idx2 == 1 && idx1 < k)
-    {
-        shared[(m + idx1) * 3] = input[(globalIdx1 + idx1) * 3];
-        shared[(m + idx1) * 3 + 1] = input[(globalIdx1 + idx1) * 3 + 1];
-        shared[(m + idx1) * 3 + 2] = input[(globalIdx1 + idx1) * 3 + 2];
-    }
-
-    __syncthreads();
-
-    float rho = getRho(shared, idx1, idx2, k);
-    output[globalIdx1 * N + globalIdx2] = rho;
 }
 
 
@@ -123,6 +70,8 @@ void warpReduce(volatile float *sdata, int tid)
     sdata[tid] += sdata[tid + 1];
 }
 
+
+
 /*
  * The Heaviside function.
  */
@@ -130,8 +79,10 @@ __device__
 __forceinline__
 float theta(float x)
 {
-    return x > 0 ? x : 0.0f;
+    return x >= 0 ? 1.0f : 0.0f;
 }
+
+
 
 /*
  * Reduces the correlation integral. The outer code should sum all elements
@@ -154,9 +105,10 @@ float theta(float x)
  */
 __global__
 void reduceCorrelationIntegral(
-    float *rhos,
+    float *input,
     float *output,
     int N,
+    int k,
     float l)
 {
     extern __shared__ float sdata[];
@@ -164,9 +116,10 @@ void reduceCorrelationIntegral(
     int tid = threadIdx.x;
     int i = blockIdx.x * (2 * blockDim.x) + tid;
 
-    float coeff = 1.0f / (N * N);
-    sdata[tid] = 
-        coeff * (theta(l - rhos[i]) + theta(l - rhos[i + blockDim.x]));
+    sdata[tid] =
+        theta(l - getRho(input, i, N, k)) +
+        theta(l - getRho(input, i + blockDim.x, N, k));
+
     __syncthreads();
 
     for (int j = blockDim.x / 2; j > 32; j >>=1)
@@ -195,86 +148,95 @@ void reduceCorrelationIntegral(
 /*=================================================================*/
 /*---------------------------- HOST CODE --------------------------*/
 /*=================================================================*/
+int getData(const char *inputFileName, int maxDataCount, float *data)
+{
+    FILE *file = fopen(inputFileName, "rb");
+    int readElements = fread((void *)data, sizeof(float), 3 * maxDataCount, file);
+    fclose(file);
+    return readElements;
+}
+
+
+
 int main(int argc, char **argv)
 {
-    int dataSize = 10000;
-    int blockSize = 256;
-    int blockCount = (dataSize + blockSize - 1) / blockSize;
+    int N;
+    float origin;
+    float step;
 
-    dim3 gridSize2D = dim3(blockCount, blockCount);
-    dim3 blockSize2D = dim3(blockSize, blockSize);
+    sscanf(argv[2], "%d", &N);
+    sscanf(argv[3], "%f", &origin);
+    sscanf(argv[4], "%f", &step);
 
-    int N = 500;
-    int k = 5;
-    float l = 1e-7;
-    int blockCountReduction = (N * N + blockSize - 1) / blockSize / 2;
+    int dataSize = N + 10;  // additional elements for k-shifting
+    int blockSize = 512;
+    int blockCount = (N * N + blockSize - 1) / blockSize / 2;
 
     float *input = new float[3 * dataSize];
-    float *rhos = new float[dataSize * dataSize];
-    float *reductionOut = new float[blockSize];
+    float *reductionOut = new float[blockCount];
 
-    float *deviceInput;
-    float *deviceRhos;
+    int actualDataSize = getData(argv[1], dataSize, input);
+    if (getData(argv[1], dataSize, input) != 3 * dataSize)
+    {
+        fprintf(
+            stderr,
+            "!File contains only %d elements (%d required)\n",
+            actualDataSize,
+            3 * dataSize);
+
+        exit(1);
+    }
+
     float *deviceReductionOut;
+    float *deviceInput;
 
+    _( cudaMalloc(&deviceReductionOut, blockCount * sizeof(float)) );
     _( cudaMalloc(&deviceInput, 3 * dataSize * sizeof(float)) );
-    _( cudaMalloc(&deviceRhos, dataSize * dataSize * sizeof(float)) );
-    _( cudaMalloc(&deviceReductionOut, blockSize * sizeof(float)) );
-
-    for (int i = 0; i < dataSize; i++)
-    {
-        input[i * 3] = sin(i);
-        input[i * 3 + 1] = cos(i);
-        input[i * 3 + 2] = i;
-    }
-
-    float elapsed = 0.0;
-    cudaEvent_t start;
-    cudaEvent_t stop;
-    _( cudaEventCreate(&start) );
-    _( cudaEventCreate(&stop) );
-    _( cudaMemcpy(
-            deviceInput,
-            input,
-            3 * dataSize * sizeof(float),
-            cudaMemcpyHostToDevice) );
-
-    _( cudaEventRecord(start, 0) );
-    calculateRhos
-        <<<gridSize2D, blockSize2D, 3 * (blockSize + k) * sizeof(float)>>>
-        (deviceInput, deviceRhos, N, k);
-
-    reduceCorrelationIntegral
-        <<<blockCountReduction, blockSize, blockSize * sizeof(float)>>>
-        (deviceRhos, deviceReductionOut, N, l);
-    _( cudaEventRecord(stop, 0) );
-
-    _( cudaEventSynchronize(stop) );
-    _( cudaEventElapsedTime(&elapsed, start, stop) );
-    _( cudaEventDestroy(start) );
-    _( cudaEventDestroy(stop) );
 
     _( cudaMemcpy(
-            reductionOut,
-            deviceReductionOut,
-            blockSize * sizeof(float),
-            cudaMemcpyDeviceToHost) );
+        deviceInput,
+        input,
+        3 * dataSize * sizeof(float),
+        cudaMemcpyHostToDevice) );
 
-    float integral = 0.0;
-    for (int i = 0; i < blockSize; i++)
+    for (int k = 1; k < 6; k++)
     {
-        integral += reductionOut[i];
+        char name[120];
+        sprintf(name, "plot_%d.ssv", k);
+        FILE *out = fopen(name, "w");
+
+        float l = origin;
+        for (int q = 0; q < 50; q++)
+        {
+            reduceCorrelationIntegral
+                <<<blockCount, blockSize, blockSize * sizeof(float)>>>
+                (deviceInput, deviceReductionOut, N, k, l);
+
+            _( cudaMemcpy(
+                reductionOut,
+                deviceReductionOut,
+                blockCount * sizeof(float),
+                cudaMemcpyDeviceToHost) );
+
+            float integral = 0.0;
+            for (int t = 0; t < blockCount; t++)
+            {
+                integral += reductionOut[t];
+            }
+
+            integral /= N * N;
+            fprintf(out, "%e %e\n", log(l), log(integral));
+            l *= step;
+        }
+
+        fclose(out);
     }
 
-    printf("%e -> %e\n", integral, log(integral) / log(l));
-    printf("GPU time: %e ms\n", elapsed);
-
-    _( cudaFree(deviceInput) );
-    _( cudaFree(deviceRhos) );
-    _( cudaFree(deviceReductionOut) );
     delete[] input;
-    delete[] rhos;
     delete[] reductionOut;
+
+    cudaFree(deviceInput);
+    cudaFree(deviceReductionOut);
 
     return 0;
 }
