@@ -23,19 +23,21 @@ if (len(sys.argv) < 2 or sys.argv[1] == "-h" or sys.argv[1] == "--help"):
 pref = sys.argv[1]
 
 if (len(sys.argv) > 2):
-    dim = int(sys.argv[1])
+    dim = int(sys.argv[2])
 else:
     dim = 6
 
 
 
-fig = plt.figure()
+fig = plt.figure(figsize=(10,10))
 ax = fig.add_subplot(111)
 
 for i in range(1, dim + 1):
     data = np.genfromtxt(f"{pref}_{i}.ssv", delimiter=" ", names=["x", "y"])
     ax.set_xlabel("$\ln l$")
     ax.set_ylabel("$\ln C(l)$")
-    ax.plot(data["x"], data["y"])
+    line, = ax.plot(data["x"], data["y"])
+    line.set_label(f"k = {i}")
 
+ax.legend()
 fig.savefig(f"{pref}.png")
