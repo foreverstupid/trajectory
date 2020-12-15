@@ -4,7 +4,7 @@
 #include <cmath>
 #include "AbstractIntegralGetter.hpp"
 
-class IntegralGetter : AbstractIntegralGetter
+class IntegralGetter : public AbstractIntegralGetter
 {
 public:
     IntegralGetter(const char *fileName, int N)
@@ -13,6 +13,6 @@ public:
     }
 
     float getCorrelationIntegral(int k, float l);
-}
+};
 
 #endif

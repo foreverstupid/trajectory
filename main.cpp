@@ -73,12 +73,10 @@ int main(int argc, char **argv)
     sscanf(argv[3], "%f", &origin);
     sscanf(argv[4], "%f", &step);
 
-    AbstractIntegralGetter ig;
-
 #ifdef CUDA
-    ig = CudaIntegralGetter(argv[1], N);
+    CudaIntegralGetter ig = CudaIntegralGetter(argv[1], N);
 #else
-    ig = IntegralGetter(argv[1], N);
+    IntegralGetter ig = IntegralGetter(argv[1], N);
 #endif
 
 #ifdef MPI

@@ -13,9 +13,9 @@ protected:
 
 public:
     AbstractIntegralGetter(const char *fileName, int N);
-    virtual ~AbstractGetter();
+    virtual ~AbstractIntegralGetter();
 
-    float getCorrelationIntegral(int k, float l) = 0;
-}
+    virtual float getCorrelationIntegral(int k, float l) = 0;
+};
 
 #endif

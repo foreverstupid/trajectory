@@ -1,18 +1,23 @@
-mpicuda: main.cpp kernel.cu kernel.hpp
-	nvcc -O2 -DMPI -DCUDA -c kernel.cu -o kernel.o
-	mpicxx -DMPI -DCUDA -c main.cpp -o main.o
-	mpicxx main.o kernel.o -lcudart -o gpm-mc
+cudampi: main.cpp AbstractIntegralGetter.o CudaIntegralGetter.o
+	mpicxx -O2 -DCUDA -DMPI $^ -lm -o gpm_mpicuda
 
 cuda: main.cpp AbstractIntegralGetter.o CudaIntegralGetter.o
-	nvcc -O2 -DCUDA -c kernel.cu -o kernel.o
-	nvcc -DCUDA -c main.cpp -o main.o
-	nvcc main.o kernel.o -o gpm-c
+	nvcc -O2 -DCUDA $^ -lm -o gpm_cuda
 
-mpi: main.cpp
-	mpicxx -O2 -DMPI -o gpm-m main.cpp
+mpi: main.cpp AbstractIntegralGetter.o IntegralGetter.o
+	mpicxx -O2 -DMPI $^ -lm -o gpm_mpi
 
-simple: main.cpp
-	g++ -O2 -o gpm main.cpp
+simple: main.cpp AbstractIntegralGetter.o IntegralGetter.o
+	g++ -O2 $^ -lm -o gpm_simple
+
+AbstractIntegralGetter.o: AbstractIntegralGetter.cpp AbstractIntegralGetter.hpp
+	g++ -O2 -c $< -o $@
+
+IntegralGetter.o: IntegralGetter.cpp IntegralGetter.hpp
+	g++ -O2 -c $< -o $@
+
+CudaIntegralGetter.o: CudaIntegralGetter.cpp CudaIntegralGetter.hpp
+	nvcc -O2 -c $< -o $@
 
 clean:
 	rm -f *.o gpm*

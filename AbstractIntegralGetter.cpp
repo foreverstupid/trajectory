@@ -23,7 +23,7 @@ AbstractIntegralGetter::AbstractIntegralGetter(
 
     float *input = new float[3 * this->dataSize];
 
-    int actualDataSize = getData(argv[1], dataSize, input);
+    int actualDataSize = getData(fileName, dataSize, input);
     if (getData(fileName, dataSize, input) != 3 * dataSize)
     {
         fprintf(

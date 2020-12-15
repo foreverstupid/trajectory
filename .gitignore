@@ -1,5 +1,5 @@
 *.o
-gpm
+gpm*
 *.txt
 *.csv
 *.raw
@@ -12,5 +12,6 @@ gpm
 *.exe
 *.dll
 *.ssv
-trajectory
 *.exp
+*.err
+*.out
