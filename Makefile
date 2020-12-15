@@ -3,7 +3,7 @@ mpicuda: main.cpp kernel.cu kernel.hpp
 	mpicxx -DMPI -DCUDA -c main.cpp -o main.o
 	mpicxx main.o kernel.o -lcudart -o gpm-mc
 
-cuda: main.cpp kernel.cu kernel.hpp
+cuda: main.cpp AbstractIntegralGetter.o CudaIntegralGetter.o
 	nvcc -O2 -DCUDA -c kernel.cu -o kernel.o
 	nvcc -DCUDA -c main.cpp -o main.o
 	nvcc main.o kernel.o -o gpm-c
