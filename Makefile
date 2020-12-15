@@ -1,23 +1,28 @@
+NVCC=nvcc
+MPICC=mpicxx
+CC=g++
+CFLAGS=-O2
+
 cudampi: main.cpp AbstractIntegralGetter.o CudaIntegralGetter.o
-	mpicxx -O2 -DCUDA -DMPI -L/usr/local/cuda/lib64 $^ -lm -lcudart -o gpm_mpicuda
+	$(MPICC) $(CFLAGS) -DCUDA -DMPI -L/usr/local/cuda/lib64 $^ -lm -lcudart -o gpm_mpicuda
 
 cuda: main.cpp AbstractIntegralGetter.o CudaIntegralGetter.o
-	nvcc -O2 -DCUDA $^ -lm -o gpm_cuda
+	$(NVCC) $(CFLAGS) -DCUDA $^ -lm -o gpm_cuda
 
 mpi: main.cpp AbstractIntegralGetter.o IntegralGetter.o
-	mpicxx -O2 -DMPI $^ -lm -o gpm_mpi
+	$(MPICC) $(CFLAGS) -DMPI $^ -lm -o gpm_mpi
 
 simple: main.cpp AbstractIntegralGetter.o IntegralGetter.o
-	g++ -O2 $^ -lm -o gpm_simple
+	$(CC) $(CFLAGS) $^ -lm -o gpm_simple
 
 AbstractIntegralGetter.o: AbstractIntegralGetter.cpp AbstractIntegralGetter.hpp
-	g++ -O2 -c $< -o $@
+	$(CC) $(CFLAGS) -c $< -o $@
 
 IntegralGetter.o: IntegralGetter.cpp IntegralGetter.hpp
-	g++ -O2 -c $< -o $@
+	$(CC) $(CFLAGS) -c $< -o $@
 
 CudaIntegralGetter.o: CudaIntegralGetter.cu CudaIntegralGetter.hpp
-	nvcc -O2 -c $< -o $@
+	$(NVCC) $(CFLAGS) -c $< -o $@
 
 clean:
 	rm -f *.o gpm*
