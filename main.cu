@@ -190,6 +190,52 @@ float getCorrelationIntegral(const float *input, float l, int k, int N)
 
 
 
+#ifdef MPI
+/*
+ * Initializes MPI, returning the rank of the process.
+ */
+int initMPI(int argc, char **argv)
+{
+    int errCode;
+    if ((errCode = MPI_Init(&argc, &argv)) != 0)
+    {
+        fprintf(stderr, "!Cannot init MPI: error code is %d\n", errCode);
+        exit(1);
+    }
+
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    return rank;
+}
+#endif
+
+
+
+/*
+ * Estimates and prints the running time of the program.
+ */
+void estimateRunningTime(clock_t start)
+{
+#ifdef MPI
+    float local_seconds = (float)(clock() - start) / CLOCKS_PER_SEC;
+    float seconds;
+    MPI_Reduce(
+        &local_seconds, &seconds,
+        1, MPI_FLOAT, MPI_MAX,
+        0, MPI_COMM_WORLD);
+#else
+    float seconds = (float)(clock() - start) / CLOCKS_PER_SEC;
+#endif
+
+    printf("Running time: %f seconds", seconds);
+}
+
+
+
+/*
+ * Reads the input data from the given file. Each piece of the data is
+ * a 3-vector of float. This function returns actually read floats count.
+ */
 int getData(const char *inputFileName, int maxDataCount, float *data)
 {
     FILE *file = fopen(inputFileName, "rb");
@@ -203,6 +249,10 @@ int getData(const char *inputFileName, int maxDataCount, float *data)
 int main(int argc, char **argv)
 {
     clock_t start = clock();
+
+#ifdef MPI
+    int rank = initMPI(argc, argv);
+#endif
 
     int N;
     float origin;
@@ -247,7 +297,11 @@ int main(int argc, char **argv)
         cudaMemcpyHostToDevice) );
 #endif
 
+#ifdef MPI
+    int k = rank + 1;
+#else
     for (int k = 1; k < 7; k++)
+#endif
     {
         char name[120];
         sprintf(name, "plot_%d.ssv", k);
@@ -293,7 +347,11 @@ int main(int argc, char **argv)
     cudaFree(deviceReductionOut);
 #endif
 
-    printf("Running time: %f seconds", (float)(clock() - start) / CLOCKS_PER_SEC);
+    estimateRunningTime(start);
+
+#ifdef MPI
+    MPI_Finalize();
+#endif
 
     return 0;
 }
