@@ -59,6 +59,16 @@ void estimateRunningTime(clock_t start)
 
 int main(int argc, char **argv)
 {
+    if (argc < 6)
+    {
+        fprintf(
+            stderr,
+            "!Too few arguments. "
+            "Expected: <input> <size> <lorigin> <step> <outprefix>\n");
+
+        return 1;
+    }
+
     clock_t start = clock();
 
 #ifdef MPI
@@ -86,7 +96,7 @@ int main(int argc, char **argv)
 #endif
     {
         char name[120];
-        sprintf(name, "plot_%d.ssv", k);
+        sprintf(name, "%s_%d.ssv", argv[5], k);
         FILE *out = fopen(name, "w");
 
         float l = origin;

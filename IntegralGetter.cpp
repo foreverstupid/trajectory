@@ -36,9 +36,9 @@ float IntegralGetter::getCorrelationIntegral(int k, float l)
                     sqr(input[(i + p) * 3 + 2] - input[(j + p) * 3 + 2]);
             }
 
-            result += sqrt(rho);
+            result += theta(l - sqrt(rho));
         }
     }
 
-    return result / (N  * N);
+    return result / (N * N);
 }
