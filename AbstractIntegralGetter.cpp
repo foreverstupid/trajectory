@@ -19,9 +19,8 @@ AbstractIntegralGetter::AbstractIntegralGetter(
     int N)
 {
     this->N = N;
-    dataSize = N + 10;  // additional elements for k-shifting
-
-    float *input = new float[3 * this->dataSize];
+    dataSize = N + 100;  // additional elements for k-shifting
+    input = new float[3 * dataSize];
 
     int actualDataSize = getData(fileName, dataSize, input);
     if (getData(fileName, dataSize, input) != 3 * dataSize)

@@ -52,7 +52,7 @@ void estimateRunningTime(clock_t start)
     float seconds = (float)(clock() - start) / CLOCKS_PER_SEC;
 #endif
 
-    printf("Running time: %f seconds", seconds);
+    printf("Running time: %f seconds\n", seconds);
 }
 
 
