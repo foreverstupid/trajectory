@@ -1,5 +1,5 @@
 cudampi: main.cpp AbstractIntegralGetter.o CudaIntegralGetter.o
-	mpicxx -O2 -DCUDA -DMPI $^ -lm -o gpm_mpicuda
+	mpicxx -O2 -DCUDA -DMPI -L/usr/local/cuda/lib64 $^ -lm -lcudart -o gpm_mpicuda
 
 cuda: main.cpp AbstractIntegralGetter.o CudaIntegralGetter.o
 	nvcc -O2 -DCUDA $^ -lm -o gpm_cuda
