@@ -1,4 +1,4 @@
-#include "CudantegralGetter.hpp"
+#include "CudaIntegralGetter.hpp"
 
 #define _(code) do{ gpuAssert(code, __FILE__, __LINE__); }while(0)
 
@@ -181,7 +181,7 @@ float CudaIntegralGetter::getCorrelationIntegral(int k, float l)
         blockCount * sizeof(float),
         cudaMemcpyDeviceToHost) );
 
-    flaot integral = 0.0;
+    float integral = 0.0;
     for (int t = 0; t < blockCount; t++)
     {
         integral += reductionOut[t];

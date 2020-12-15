@@ -16,7 +16,7 @@ AbstractIntegralGetter.o: AbstractIntegralGetter.cpp AbstractIntegralGetter.hpp
 IntegralGetter.o: IntegralGetter.cpp IntegralGetter.hpp
 	g++ -O2 -c $< -o $@
 
-CudaIntegralGetter.o: CudaIntegralGetter.cpp CudaIntegralGetter.hpp
+CudaIntegralGetter.o: CudaIntegralGetter.cu CudaIntegralGetter.hpp
 	nvcc -O2 -c $< -o $@
 
 clean:

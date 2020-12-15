@@ -11,7 +11,7 @@
 class CudaIntegralGetter : public AbstractIntegralGetter
 {
 private:
-    flaot *reductionOut;
+    float *reductionOut;
     float *deviceInput;
     float *deviceReductionOut;
 
@@ -23,6 +23,6 @@ public:
     ~CudaIntegralGetter();
 
     float getCorrelationIntegral(int k, float l);
-}
+};
 
 #endif
