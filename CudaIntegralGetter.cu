@@ -18,18 +18,7 @@ static inline void gpuAssert(cudaError_t code, const char *file, int line)
 
 /* Calculates values that are defined by the formula:
  *      \rho(i, j) = \sqrt(\sum_{s = 0}^{k - 1} (y_{j + s} - y_{i + s})^2).
- * Args:
- *      data:
- *          Input data as an array of 3-vectors.
- *
- *      idx1:
- *          The first correlating vector index.
- *
- *      idx2:
- *          The second correlating vector index.
- *
- *      k:
- *          The delay value.
+ * Here i = <idx> / <N>, j = <idx> % <N>.
  */
 __device__
 static float getRho(float *data, int idx, int N, int k)
@@ -86,18 +75,6 @@ static float theta(float x)
  * of the work. The integral is calculated usig the formula:
  *      C_k(l) = 1/N^2 \sum_{i, j} \theta(l - \rho(i, j)),
  * where \theta is the Heaviside function.
- * Args:
- *      rhos:
- *          Calculated by "calculateRhos" values of \rho(i, j).
- *
- *      output:
- *          The output of the function.
- *
- *      N:
- *          Data series elements count.
- *
- *      l:
- *          The "l" value for the integral.
  */
 __global__
 static void reduceCorrelationIntegral(
