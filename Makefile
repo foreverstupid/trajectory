@@ -3,7 +3,7 @@ MPICC=mpicxx
 CC=g++
 CFLAGS=-O2
 
-cudampi: main.cpp AbstractIntegralGetter.o CudaIntegralGetter.o
+mpicuda: main.cpp AbstractIntegralGetter.o CudaIntegralGetter.o
 	$(MPICC) $(CFLAGS) -DCUDA -DMPI -L/usr/local/cuda/lib64 $^ -lm -lcudart -o gpm_mpicuda
 
 cuda: main.cpp AbstractIntegralGetter.o CudaIntegralGetter.o
